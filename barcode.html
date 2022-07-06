@@ -1,0 +1,54 @@
+<html>
+<head><title>MobilePoint V1.0</title>
+<script type="text/javascript" src="jquery-1.5.1.min.js"></script>
+<script type="text/javascript" src="jquery-barcode.min.js"></script>
+<script type="text/javascript">
+var storage = window.localStorage;
+function Load() {
+	var PGs = $.parseJSON(storage.PGs);
+	//Generation du tableau
+	var sb = "";
+	var nbreColonne = 3;
+	var nbreLigne = 8;
+	var nbreCode = nbreLigne * nbreColonne;
+	console.log(PGs);
+	$.each(PGs, function(k,v) {
+		ki = Math.floor(k/nbreColonne);
+		var page = 5;
+		if(k<(nbreCode*page) && k>=(nbreCode*(page-1)))
+		{
+			//console.log(k);
+			if (k%nbreCode == 0 && k % nbreColonne == 0)
+			{
+				sb += "</tr>";
+			}
+			if (k % nbreColonne == 0)
+			{
+				sb += "<tr style='margin-left:3mm;'>";
+			}
+			i = k-ki*nbreColonne;
+			sb += "<td style='height:165px;text-align:center;'><div id='" + ki + "_" + i + "'></div>"+v['fam']+"</td>";
+		}
+	});
+	
+	$("#table").html(sb);
+	
+	$.each(PGs, function(k,v) {
+	//console.log(k);
+		//if(k<(27*page) && k>=(27*(page-1)))
+		//{
+		ki = Math.floor(k/nbreColonne);
+		i = k%nbreColonne;
+		//console.log(ki +"_"+i);
+		$("#"+ ki +"_"+i).barcode(v['barcode'], "code39",{barHeight:50,barWidth:2});
+		$("#"+ ki +"_"+i).css('width','300px');
+		//$("#"+ ki +"_"+i).css('height','50px');
+		//}
+	});
+}
+</script>
+<body onload="Load();">
+<table id='table'>
+</table>
+</body>
+</html>

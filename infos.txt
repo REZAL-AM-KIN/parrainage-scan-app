@@ -1,0 +1,6 @@
+Chemin fichier tablette android :
+
+file:///sdcard/nomrepertoire/nomfichier.html
+
+Chemin accès fichier storage windows, firefox :
+%appdata%\Mozilla\Firefox\Profiles\xxxxxxx.default\webappsstore.sqlite

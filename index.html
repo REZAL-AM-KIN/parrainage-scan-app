@@ -1,0 +1,307 @@
+<html>
+<head><title>MobilePoint V1.0</title>
+<script type="text/javascript" src="jquery-1.5.1.min.js"></script>
+<script type="text/javascript">
+var storage = window.localStorage;
+var Manips;
+var PGs;
+var ManipId;
+var now = new Date();
+var annee   = now.getFullYear();
+var mois    = now.getMonth() + 1;
+var jour    = now.getDate();
+var date = jour + "/" + mois + "/" + annee;
+var Key = 0;
+var tempo;
+var decoup;
+var nDecoup = 50;
+var afficheTout = 0;
+
+function Load() {
+	$("#scan").hide();
+	
+	//Get PGs
+	if (storage.PGs) PGs = $.parseJSON(storage.PGs);
+		
+	//Get MAJ
+	if(storage.MAJ)
+	{
+		var MAJ = $.parseJSON(storage.MAJ);
+		$.each( MAJ, function( key, val ) {
+			eval(val);
+		});
+	}
+	
+	$(document).ready(function(){$("#loading_keycrypt2").show(); });
+
+	//Get PGs and Manips
+	$.getJSON("./get.php?method=getPGsAndManips&jsoncallback=?",
+	function(data) {
+		$("#loading_keycrypt2").hide();
+		var sb = "";
+		if(data) {
+			var Manips = data['Manips'];
+			var PGs = data['PGs'];
+			var MAJ = data['MAJ'];
+		}
+		if(Manips) {
+			storage.setItem('Manips', JSON.stringify(Manips, null, 2));
+			$.each( Manips, function( key, val ) {
+			if(key>Manips.length-5) sb = sb + "<br/><input type='button' value='" + val['nom']+ "' onclick = 'Manip(" + val['id'] + "," + key + ");' /><br/>";
+			});
+		}
+		if(PGs) storage.setItem('PGs', JSON.stringify(PGs, null, 2));
+		if(MAJ) storage.setItem('MAJ', JSON.stringify(MAJ, null, 2));
+		
+		$("#manips").fadeOut(0);
+		$("#manips").html(sb);
+		$("#manips").fadeIn(500);
+	});
+	if ($.parseJSON(storage.Manips)) {
+		Manips = $.parseJSON(storage.Manips);
+		var sb = "";
+		$.each( Manips, function( key, val ) {
+			if(key>Manips.length-5) sb = sb + "<br/><input type='button' value='" + val['nom'] + "' onclick = 'Manip(" + val['id'] + "," + key + ");' /><br/>";
+		});
+		
+		$("#manips").fadeOut(0);
+		$("#manips").html(sb);
+		$("#manips").fadeIn(500);
+	}
+	
+}
+
+function Scan() {
+	$("#scan").show();
+	$("#accueil").hide();
+}
+
+function Manip(id,key) {
+	ManipId = id;
+	Key = key;
+	$("#scan").hide();
+	$("#manip").show();
+	var sbHead = "";
+	sbHead = "<strong>Manip : " + Manips[Key]['nom'] + "</strong><br/>Date : " + date + "<br/><br/>";
+	$("#manipHead").html(sbHead);
+	
+	var sbBody = "";
+	sbBody = "En attente d'un Scan...<br/><input type='text' id='pg' onchange='scanDetect();' />";
+	$("#manipBody").html(sbBody);
+	$("#pg").focus();
+	
+	//Charger Historique manip à partir du fichier temporaire
+	var sbFooter = "";
+	if(storage.local) {
+		var local = $.parseJSON(storage.local);
+		local.reverse();
+			
+		$.each(local,function(key,t)
+		{
+			var bucquefams = "";
+			$.each(PGs,function(k,pg) {
+				if(pg['barcode'] == t[2]) 
+				{
+					bucquefams = pg['bucque'] + " " + pg['fam'];
+				}
+			});
+			if(t[0] != null) {
+				if(t[0] == ManipId) sbFooter += "<div style='background-color:#2EFE2E;font-weight:bold;color:#0B610B;border-radius:10px;width:150px;text-align:center;'>PG : " + bucquefams + "</div>";
+			}
+		});
+	}
+	$("#manipFooter").html(sbFooter);
+}
+
+function scanDetect() {
+	var pgScan = $("#pg").val();
+	//Check if scan is in PGs
+	var found = false;
+	var bucquefams = "";
+	console.log(PGs);
+	$.each(PGs,function(key,pg) {
+		if(pg['barcode'] == pgScan) 
+		{
+			found = true;
+			bucquefams = pg['bucque'] + " " + pg['fam'];
+		}
+	});
+	if(found == false) {
+		var sbBody = "<div style='background-color:#FE2E2E;font-weight:bold;color:#B40404;border-radius:10px;width:150px;text-align:center;'><span style='font-size:10px;'>Erreur : PG not found.</span><br/>PG : " + pgScan + "</div>";
+		$("#manipBody").html(sbBody);
+		setTimeout("Refresh()",500);
+		return;
+	}
+	//Variable storage
+	var local = new Array();
+	var temp = new Array();
+	var found = false;
+	if (storage.local) {
+		local = $.parseJSON(storage.local);
+		//Check double pointage
+		$.each(local, function(key,t) {
+			if(t[2] == pgScan && t[0] == ManipId)
+			{
+				found = true;
+			}
+		});
+		if(found ==true)
+		{
+			var sbBody = "<div style='background-color:#FFFF00;font-weight:bold;color:#000000;border-radius:10px;width:150px;text-align:center;'><span style='font-size:10px;'>Erreur : PG d&eacute;j&agrave; point&eacute;.</span><br/>PG : " + bucquefams + "</div>";
+			$("#manipBody").html(sbBody);
+			setTimeout("Refresh()",500);
+			return;
+		}
+	}
+	
+	//Enregistrement local
+	local.push(new Array(ManipId,Manips[Key]['nom'],pgScan,date));
+	storage.setItem('local', JSON.stringify(local, null, 2));
+	//Enregistrement temp (jusqu'au prochain upload)
+	if (storage.temp) temp = $.parseJSON(storage.temp);
+	temp.push(new Array(ManipId,Manips[Key]['nom'],pgScan,date));
+	storage.setItem('temp', JSON.stringify(temp, null, 2));
+	
+	//Affichage succès
+	var sbBody = "<div style='background-color:#2EFE2E;font-weight:bold;color:#0B610B;border-radius:10px;width:150px;text-align:center;'>PG : " + bucquefams + "</div>";
+	$("#manipBody").html(sbBody);
+	//RAZ input pour nouveau scan
+	setTimeout("Refresh()",500);
+}
+
+function Refresh() {
+	var sbFooter = $("#manipBody").html() + $("#manipFooter").html();
+	$("#manipFooter").html(sbFooter);
+	var sbBody = "En attente d'un Scan...<br/><input type='text' id='pg' onchange='scanDetect();' />";
+	$("#manipBody").html(sbBody);
+	$("#pg").focus();
+}
+
+function ClearStorage() {
+	storage.clear();
+}
+
+function Historique() {
+	if($("#historique").css("display")=="none") $("#historique").show();
+	else $("#historique").hide();
+	var sbFooter = "<br/><table style='border:1px solid black;text-align:center;'><tr><td>Manip</td><td>PG</td><td>Date</td></tr>";
+	if(storage.local) {
+		var local = $.parseJSON(storage.local);
+		local.reverse();
+		$.each(local,function(key,t)
+		{
+			if(t[0] != null) {
+				sbFooter += "<tr style='font-weight:bold;color:#000000;text-align:center;'><td style='border:1px solid black;'>" + t[1] + "</td><td style='border:1px solid black;'>" + t[2] + "</td><td style='border:1px solid black;'>" + t[3] + "</td></tr>";
+			}
+		});
+	}
+	$("#historique").html(sbFooter+'</table>');
+}
+
+function Upload() {
+	
+	if(storage.temp && storage.temp != '[]')
+	{
+		
+		tempo = $.parseJSON(storage.temp);
+		decoup = Math.ceil(tempo.length / nDecoup);
+	
+		PartUpload(1);
+	}
+	else
+	{
+		alert("Rien a uploader !");
+	}
+}
+
+function PartUpload(i) {
+
+	tempo = $.parseJSON(storage.temp);
+	
+	var temp = tempo.slice(nDecoup*(i-1),nDecoup*i);
+	console.log(temp);
+	var temp = tempo.slice(0,nDecoup);
+	//var temp = tempo;
+	$(document).ready(function(){$("#loading_keycrypt").show(); });
+	$.post( "./get.php?method=postTemp&jsoncallback=?", { temp: temp.join(";")} ,function( data ) {
+		alert("Part "+ i +"/" +decoup+" Uploaded.");
+		//storage.setItem('temp', '');
+		tempo.splice(0,nDecoup);
+		//tempo = tempo.splice(nDecoup*(i-1),nDecoup);
+		console.log(tempo);
+		//storage.setItem('temp', tempo);
+		storage.setItem('temp', JSON.stringify(tempo, null, 2));
+		$("#loading_keycrypt").hide();
+		if (i<decoup) {
+			PartUpload(i+1);
+		}
+		
+	},'json');
+
+}
+
+function AfficherToutManips() {
+	if (afficheTout == 0) {
+		afficheTout = 1;
+		$("#affiche").val('Reduire');
+		if ($.parseJSON(storage.Manips)) {
+			var sb = "";
+			$.each( Manips, function( key, val ) {
+				sb = sb + "<br/><input type='button' value='" + val['nom'] + "' onclick = 'Manip(" + val['id'] + "," + key + ");' /><br/>";
+			});
+			
+			$("#manips").fadeOut(0);
+			$("#manips").html(sb);
+			$("#manips").fadeIn(500);
+		}
+	}
+	else
+	{
+		afficheTout = 0;
+		$("#affiche").val('Afficher Tout');
+		if ($.parseJSON(storage.Manips)) {
+			var sb = "";
+			$.each( Manips, function( key, val ) {
+				if(key>Manips.length-5) sb = sb + "<br/><input type='button' value='" + val['nom'] + "' onclick = 'Manip(" + val['id'] + "," + key + ");' /><br/>";
+			});
+			
+			$("#manips").fadeOut(0);
+			$("#manips").html(sb);
+			$("#manips").fadeIn(500);
+		}
+	}
+}
+
+</script>
+
+<style type="text/css">
+.input {font-size:20px;}
+</style>
+
+</head>
+<body onload="Load();" style="font-size:18px;">
+<span id="loading_keycrypt2" style="display:none;"><img src="loading.gif" /></span>
+<div id="accueil">
+	<span style="font-size:15px;"><strong>MobilePoint<br/>V1.0</strong></span><br/>
+	<img src='am.gif' width="130" height="160" /><br/>
+	<input type="button" id="scan_button" value="Scan" onclick="Scan();" /><br/>
+	<input type="button" id="upload_button" value="Upload" onclick="Upload();" /><span id="loading_keycrypt" style="display:none;"><img src="loading.gif" /></span><br/><br/>
+	<input type="button" id="upload_button" value="Historique" onclick="Historique();" />
+	<div id="historique" style="height:300px;overflow:auto;display:none;width:500px;"></div>
+</div>
+<div id="scan" style="font-size:12px;"><input type="button" value="Accueil" onclick="$('#scan').hide();$('#accueil').show();" /><br/>
+	<strong>Liste Manips : </strong><input id="affiche" type="button" value="Afficher Tout" onclick="AfficherToutManips();" /><br/>
+	<div id="manips"></div>
+</div>
+<div id="manip" style="display:none;">
+<input type="button" value="Accueil" onclick="$('#manip').hide();$('#accueil').show();" /><input type="button" value="Scan" onclick="$('#scan').show();$('#manip').hide();" />
+<div id="manipHead"></div>
+<div id="manipBody"></div><br/>
+<div id="manipFooter" style="height:100px;overflow:auto;display:none;width:500px;"></div>
+</div>
+<br/><br/>
+<span style="font-size:4px;"><u>All rights reserved.<br/>Application developed by Celsius 108 KIN213 with the support of MN Company.</u></span>
+
+<a href="./get.php?method=getPGsAndManips" target="_blank">Liaison Site</a>
+</body>
+</html>
