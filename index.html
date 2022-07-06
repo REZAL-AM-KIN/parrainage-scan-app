@@ -35,7 +35,7 @@ function Load() {
 	$(document).ready(function(){$("#loading_keycrypt2").show(); });
 
 	//Get PGs and Manips
-	$.getJSON("./get.php?method=getPGsAndManips&jsoncallback=?",
+	$.getJSON("ADDR/get.php?method=getPGsAndManips&jsoncallback=?",
 	function(data) {
 		$("#loading_keycrypt2").hide();
 		var sb = "";
@@ -223,7 +223,7 @@ function PartUpload(i) {
 	var temp = tempo.slice(0,nDecoup);
 	//var temp = tempo;
 	$(document).ready(function(){$("#loading_keycrypt").show(); });
-	$.post( "./get.php?method=postTemp&jsoncallback=?", { temp: temp.join(";")} ,function( data ) {
+	$.post( "ADDR/get.php?method=postTemp&jsoncallback=?", { temp: temp.join(";")} ,function( data ) {
 		alert("Part "+ i +"/" +decoup+" Uploaded.");
 		//storage.setItem('temp', '');
 		tempo.splice(0,nDecoup);
@@ -302,6 +302,6 @@ function AfficherToutManips() {
 <br/><br/>
 <span style="font-size:4px;"><u>All rights reserved.<br/>Application developed by Celsius 108 KIN213 with the support of MN Company.</u></span>
 
-<a href="./get.php?method=getPGsAndManips" target="_blank">Liaison Site</a>
+<a href="ADDR/get.php?method=getPGsAndManips" target="_blank">Liaison Site</a>
 </body>
 </html>
